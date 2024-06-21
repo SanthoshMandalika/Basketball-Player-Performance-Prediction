@@ -1,0 +1,443 @@
+---
+title: Exploratory Data Analysis of NBA Player Statistics
+date: May 4, 2024
+output:
+  html_document:
+    toc: true
+    toc_float: true
+---
+<h1>Setting up R</h1>
+
+In this code chunk, we are setting up the R environment by installing necessary packages and loading required libraries 
+```{r error=FALSE, message=FALSE, warning=FALSE}
+invisible({capture.output({
+# Set CRAN mirror
+options(repos = "https://cloud.r-project.org/")
+
+#install necessary packages
+install.packages("ggpubr")
+install.packages("cowplot")
+install.packages("gridExtra")
+
+# Load necessary libraries
+library(tidyverse)
+library(plotly)
+library(ggplot2)
+library(cowplot)
+library(gridExtra)
+library(RColorBrewer)
+library(ggpubr)
+})})
+```
+
+<h1>Dataset Interpretation</h1>
+
+In this section, we load the NBA player statistics dataset from a CSV file and print the number of rows and columns in the dataset, providing a brief overview of its dimensions..
+
+```{r Dataset interpretation,include=TRUE}
+# Read the dataset
+df <- read.csv('/Users/akashaluguri/Desktop/2023_nba_player_stats.csv')
+# Display dataset information
+print(paste("This Dataset have", nrow(df), "rows and", ncol(df), "columns."))
+```
+
+<h1>Data Preprocessing</h1>
+
+In the provided section, we have enhanced the dataset by renaming the column names to more descriptive titles. This practice significantly contributes to improved dataset comprehension and facilitates effective communication of its contents. 
+Additionally, we have addressed missing values within the "Position" column by replacing them with "SG," a designation representing the most frequently occurring position. This approach ensures consistency and completeness in the dataset, enabling clearer insights and analysis.
+
+```{r Dataset ,include=TRUE}
+# Rename columns
+names(df) <- c("Player_Name", "Position", "Team_Abbreviation", "Age", "Games_Played", "Wins", "Losses",
+               "Minutes_Played", "Total_Points", "Field_Goals_Made", "Field_Goals_Attempted", "Field_Goal_Percentage",
+               "Three_Point_FG_Made", "Three_Point_FG_Attempted", "Three_Point_FG_Percentage",
+               "Free_Throws_Made", "Free_Throws_Attempted", "Free_Throw_Percentage", "Offensive_Rebounds",
+               "Defensive_Rebounds", "Total_Rebounds", "Assists", "Turnovers", "Steals", "Blocks", "Personal_Fouls",
+               "NBA_Fantasy_Points", "Double_Doubles", "Triple_Doubles", "Plus_Minus")
+
+
+```
+
+<h1>Visualization: Total Points by Position</h1>
+
+Created a bar plot showing the total number of points scored by players in different positions. This plot can help us visualize the scoring distribution across different player positions.
+
+```{r plots,include=TRUE}
+#Bar Plot for Total points Distribution by Position.
+ggplot(df, aes(x = Position, y = Total_Points)) + 
+  geom_bar(stat = "summary", fun = "sum") + 
+  labs(x = "Position", y = "Total Points", title = "Total Points by Position")
+```
+
+<h1>Visualization: Age Distribution</h1>
+
+Created histograms showing the distributions of Age for players in different positions. This plot can help us illustrate the age distribution across different player positions.
+
+```{r plots1,include=TRUE}
+#Histogram of Age Distribution
+histogram <- ggplot(df, aes(x = Age)) +
+  geom_histogram(binwidth = 1, fill = "tomato", color = "black") +
+  labs(title = "Histogram of Player Age", x = "Age", y = "Frequency") +
+  theme_minimal()
+print(histogram)
+```
+
+<h1>Visualization: Relationship between Age, Total Points, and Wins</h1>
+
+This bubble plot visualizes the relationship between age (x-axis) and total points (y-axis) for NBA players. The size of each bubble represents the number of wins associated with each player.
+
+```{r plots2,include=TRUE}
+# Bubble Plot of Age vs Total Points with Wins as Bubble Size
+bubble_plot <- ggplot(df, aes(x = Age, y = Total_Points, size = Wins)) +
+  geom_point(color = "skyblue", alpha = 0.7) +
+  scale_size_continuous(range = c(3, 15)) +
+  labs(title = "Age vs Total Points with Wins as Bubble Size", x = "Age", y = "Total Points", size = "Wins") +
+  theme_minimal() +
+  theme(plot.title = element_text(size = 16, face = "bold"),
+        axis.title = element_text(size = 14),
+        legend.title = element_text(size = 12),
+        legend.text = element_text(size = 10))
+print(bubble_plot)
+```
+
+<h1>Visualization: 3D Scatter Plot</h1>
+
+Created a 3D scatter plot showing the relationship between Total_Points, Assists, and Steals. This plot can provide a multidimensional view of player performance in terms of scoring, assists, and steals. Which Helps us undertand more about how the points have been scored.
+
+```{r plots3,include=TRUE}
+#3D Scatter Plot of Total Rebounds, Assists, Steals
+plot_ly(df, x = ~Total_Rebounds, y = ~Assists, z = ~Steals, color = ~Total_Points, type = "scatter3d", mode = "markers") %>%
+  layout(scene = list(xaxis = list(title = "Total Rebounds"),
+                      yaxis = list(title = "Assists"),
+                      zaxis = list(title = "Steals")))
+```
+
+<h1>Visualization: Relationships between Different Columns</h1>
+
+This block of code creates a grid of plots to visualize the relationships between different columns in the dataset. Each plot represents a pair of variables, with one variable plotted against the other. The plots include scatter plots and line plots depending on the data types and relationships between the variables.
+
+```{r plots4,include=TRUE,warning=FALSE}
+# Define relationships between variables
+relationships <- list(
+  c('Age', 'Total_Points'),
+  c('Total_Points', 'Games_Played'),
+  c('Field_Goals_Attempted', 'Field_Goals_Made'),
+  c('Three_Point_FG_Made', 'Three_Point_FG_Attempted'),
+  c('Free_Throws_Made', 'Free_Throws_Attempted'),
+  c('Offensive_Rebounds', 'Defensive_Rebounds'),
+  c('Steals', 'Blocks'),
+  c('Personal_Fouls', 'Blocks'),
+  c('Assists', 'Total_Points')
+)
+
+# Define a colorful color palette
+colorful_palette <- brewer.pal(9, "Set3")
+
+# Create plots for each relationship
+plots <- lapply(seq_along(relationships), function(idx) {
+  x_col <- relationships[[idx]][1]
+  y_col <- relationships[[idx]][2]
+  row <- ceiling(idx / 3)
+  col <- (idx - 1) %% 3 + 1
+  
+  plot <- ggplot(df, aes_string(x = x_col, y = y_col)) +
+    geom_point(color = colorful_palette[idx], alpha = 0.6) +
+    theme_minimal() +
+    labs(x = x_col, y = y_col)
+  
+  list(plot = plot, row = row, col = col)
+})
+
+# Combine plots into a grid layout
+combined_plot <- ggarrange(plotlist = lapply(plots, `[[`, "plot"),
+                           ncol = 3,
+                           nrow = ceiling(length(plots) / 3),
+                           common.legend = TRUE,
+                           legend = "bottom")
+
+# Apply theme
+combined_plot <- combined_plot +
+  theme(plot.title = element_blank(),
+        axis.text = element_text(size = 10),
+        axis.title = element_text(size = 12),
+        legend.text = element_text(size = 10))
+
+# Add overall title to the combined plot
+combined_plot <- annotate_figure(
+  combined_plot,
+  top = text_grob("Relationships between Different Columns", size = 16, face = "bold")
+)
+
+# Show the combined plot
+print(combined_plot)
+```
+
+<h1>Outlier Visualization and Detection</h1>
+
+In this section, we visualize the distributions of three key performance metrics in basketball: Field Goal Percentage, Three-Point FG Percentage, and Free Throw Percentage. After visualizing these distributions, we apply a function to remove outliers using z-scores, which helps in ensuring the robustness and reliability of our subsequent analyses by filtering out extreme values that may skew the data.
+
+```{r Outlier Visualisation,include=TRUE}
+hist(df$Field_Goal_Percentage, main = "Field Goal Percentage Distribution", xlab = "Field Goal Percentage", col = "skyblue", border = "white")
+hist(df$Three_Point_FG_Percentage, main = "Three-Point FG Percentage Distribution", xlab = "Three-Point FG Percentage", col = "lightgreen", border = "white")
+hist(df$Free_Throw_Percentage, main = "Free Throw Percentage Distribution", xlab = "Free Throw Percentage", col = "salmon", border = "white")
+```
+
+After visualizing, we can apply a more sophisticated outlier detection method, such as using z-scores or IQR. For better results, we have used IQR to remove outliers. Once it is done we have updated the respective coloumns with removed values.
+
+```{r Outlier detection,include=TRUE,warning=FALSE}
+# Function to replace outliers with median
+replace_outliers <- function(x) {
+  # Calculate the median
+  median_val <- median(x, na.rm = TRUE)
+  
+  # Calculate the interquartile range (IQR)
+  Q1 <- quantile(x, 0.25, na.rm = TRUE)
+  Q3 <- quantile(x, 0.75, na.rm = TRUE)
+  IQR <- Q3 - Q1
+  
+  # Define the lower and upper bounds for outliers
+  lower_bound <- Q1 - 1.5 * IQR
+  upper_bound <- Q3 + 1.5 * IQR
+  
+  # Replace outliers with median
+  x_outliers_removed <- ifelse(x < lower_bound | x > upper_bound, median_val, x)
+  
+  return(x_outliers_removed)
+}
+
+# Replace outliers in the original dataset
+df_clean <- df
+df_clean$Field_Goal_Percentage <- replace_outliers(df$Field_Goal_Percentage)
+df_clean$Three_Point_FG_Percentage <- replace_outliers(df$Three_Point_FG_Percentage)
+df_clean$Free_Throw_Percentage <- replace_outliers(df$Free_Throw_Percentage)
+df <- df_clean
+```
+
+<h1>Correlation Analysis</h1>
+
+In this section, we compute the correlation matrix for a subset of columns from the dataset, including various player performance metrics such as age, games played, wins, total points, and others. Then, we visualize the correlation matrix using a heatmap, where colors represent the strength and direction of correlations between pairs of variables. This heatmap allows us to identify patterns of association and potential relationships between different performance indicators in basketball.
+
+```{r Correlation Heat Map,include=TRUE}
+# Correlation Heatmap
+correlation_matrix <- cor(df[, c('Age', 'Games_Played', 'Wins', 'Losses', 'Minutes_Played', 'Total_Points',
+                                 'Field_Goals_Made', 'Field_Goals_Attempted', 'Field_Goal_Percentage',
+                                 'Three_Point_FG_Made', 'Three_Point_FG_Attempted', 'Three_Point_FG_Percentage',
+                                 'Free_Throws_Made', 'Free_Throws_Attempted', 'Free_Throw_Percentage',
+                                 'Offensive_Rebounds', 'Defensive_Rebounds', 'Total_Rebounds', 'Assists',
+                                 'Turnovers', 'Steals', 'Blocks', 'Personal_Fouls', 'Plus_Minus')])
+
+# Plot Correlation Heatmap
+heatmap(correlation_matrix, col = colorRampPalette(c("blue", "white", "red"))(100), 
+        symm = TRUE, margins = c(5, 5))
+```
+
+<h1>New Dataset</h1>
+
+These columns were dropped based on a high correlation observed in a correlation heatmap. Dropping them is intended to potentially improve the performance of subsequent analyses or models that are sensitive to multicollinearity or high correlation among features.
+
+```{r Updated Dataset,include=TRUE}
+# Drop unnecessary columns
+df <- df[, c('Age', 'Games_Played', 'Wins', 'Losses', 'Minutes_Played', 'Total_Points',
+             'Three_Point_FG_Percentage', 'Free_Throws_Made', 'Offensive_Rebounds',
+             'Defensive_Rebounds', 'Total_Rebounds', 'Assists', 'Turnovers', 'Steals',
+             'Blocks', 'Personal_Fouls', 'Plus_Minus')]
+```
+
+<h1>Data Splitting</h1>
+
+"In this code snippet, we're preparing our dataset for modeling by splitting it into two parts: a training set and a testing set. The 'X' dataset contains all the features (or independent variables) except for the 'Total_Points' column, which is our target variable. We randomly divide our dataset, ensuring 80% of the data is used for training and the remaining 20% for testing. After splitting, we check the dimensions of our training and testing sets to ensure they're correctly divided."
+
+```{r DataSplitting,include=TRUE}
+# Exclude 'Total_Points' column from the dataframe
+X <- df[, !names(df) %in% c('Total_Points')]
+
+# Select only the 'Total_Points' column as the target variable
+y <- df$Total_Points
+
+# Split the data into training and testing sets
+set.seed(42)  # Set random seed for reproducibility
+train_indices <- sample(1:nrow(df), 0.8 * nrow(df))  # 80% training data
+X_train <- X[train_indices, ]
+X_test <- X[-train_indices, ]
+y_train <- y[train_indices]
+y_test <- y[-train_indices]
+
+# Get the dimensions of X_train
+row_train <- nrow(X_train)
+col_train <- ncol(X_train)
+print(paste("X_train has", row_train, "rows and", col_train, "columns."))
+
+# Get the dimensions of X_test
+row_test <- nrow(X_test)
+col_test <- ncol(X_test)
+print(paste("X_test has", row_test, "rows and", col_test, "columns."))
+```
+
+<h1> Standardization </h1>
+Standardization involves transformation of our feature variables so that the rescaled independent feature variables have a mean of 0 and a standard deviation of 1. Standardization has a lot of importance in machine learning models where the scale of the variables effect the model a lot. Somme such models are Support Vector Machines, Clustering techniques, etc. This also helps in fast convergence during gradient descent and also helps in avoiding overfitting and underfitting. In this snippet, lets standardize our data and lets have a look at the head of our data.
+
+```{r Standardization, include = TRUE}
+X_train_scaled = scale(X_train)
+print(head(X_train_scaled))
+
+X_test_scaled = scale(X_test)
+print(head(X_test_scaled))
+```
+
+<h1> Caret </h1>
+Caret is a very powerful machine learning library that is available in R. It has a capability to train around 300 different types of models just by calling the 'train' function. It is not powerful because it can train a lot of different models, it is powerful because it can do cross validation and hyperparameter tuning on its own and will select the best combination of hyperparameters and decision metrics for us. Not only does it provide automatic cross validation and hyperparameter tuning, but we can also define our own rules for cross validation, hyperparameter grid and decision metric. Lets first install the caret package.
+
+```{r InstallCaret, error=FALSE, warning=FALSE, message=FALSE}
+install.packages("caret")
+library(caret)
+```
+
+<h1> Support Vector Machines with Polynomial Kernel </h1>
+For this project we will be using three different models and will see how each of these are working on our data. First one is Support Vector Machines with Polynomial Kernels. Support Vector Machines are very robust machine learning models which helps in dealing with noise. It is useful in non-linear classifications when we use a polynomial kernel. The caret package provides this model for us to train by calling the 'svmPoly' method. We also get to tune the parameters like degree of polynomial, scale and cost. 
+
+```{r SVMPoly, include=TRUE}
+library(caret)
+ctrl <- trainControl(method = "cv",   # Cross-validation method
+                     number = 5,      # Number of folds
+                     verboseIter = TRUE,  # Print verbose output
+                     search = "grid") # Use grid search for tuning
+
+# Define the hyperparameter grid
+grid <- expand.grid(degree = c(2, 3),   # Degree of the polynomial kernel
+                    scale = c(0.01, 0.1, 1),  # Scale parameter for the polynomial kernel
+                    C = c(0.1, 1, 10))  # Cost parameter for the SVM
+
+# Perform grid search with SVM using train() function
+set.seed(42)  # For reproducibility
+svm_model <- train(x = X_train_scaled, y = y_train,         # Training data
+                   method = "svmPoly",  # Specify SVM with polynomial kernel as the method
+                   trControl = ctrl,    # Control parameters for cross-validation
+                   tuneGrid = grid)    # Hyperparameter grid for tuning
+
+# View the best model and its parameters
+print(svm_model)
+```
+We do not need to worry if the model results changes after each run as we set the seed to constant value. Lets now see how this model performs on the test data. We can see that the model is doing good with test data as well since the RMSE ans Rsquared values are almost similar. We can say that our model neither overfits nor underfits.
+
+The model performance on the test data is evaluated.
+```{r PlotSVM, include=TRUE}
+library(caret)
+
+# Make predictions on the test data
+predictions <- predict(svm_model, newdata = X_test_scaled)
+
+# For regression tasks, you can calculate metrics like RMSE, MAE, R-squared, etc.
+# RMSE
+rmse <- sqrt(mean((predictions - y_test)^2))
+print(paste("RMSE:", rmse))
+# R-squared
+r_squared <- cor(predictions, y_test)^2
+print(paste("R-squared:", r_squared))
+
+# Plot graphs to visualize model performance
+# Scatterplot of Actual vs. Predicted Values
+plot(y_test, predictions, xlab = "Actual Values", ylab = "Predicted Values", main = "Actual vs. Predicted Values")
+```
+<h1> Random Forest </h1>
+Random Forests are one of the vastly used machine learning models as they are robust to noise, outliers, scale of the feature sets and also it has various regularization options which makes it one of the most valuable machine learning models available till date. So, in our project we will train a random forest model by calling the ranger method. Using this model we get the option to tune the parameters like randomly selcted predictors, split rule and the minimal node size. Lets go ahead and see what our model looks like.
+
+```{r RandomForest, include=TRUE}
+library(ranger)
+library(caret)
+ctrl <- trainControl(method = "cv",   # Cross-validation method
+                     number = 5,      # Number of folds
+                     verboseIter = TRUE,  # Print verbose output
+                     search = "grid") # Use grid search for tuning
+
+# Define the hyperparameter grid
+grid <- expand.grid(mtry = c(6, 8, 12, 16),  # Number of variables randomly sampled as candidates at each split
+                    min.node.size = c(1,3, 5,8),  # Minimum size of terminal nodes
+                    splitrule = c("variance", "extratrees","maxstat"))  # Splitting rule
+
+# Perform grid search with ranger using train() function
+set.seed(42)  # For reproducibility
+ranger_model <- train(x = X_train, y = y_train,         # Training data
+                      method = "ranger",   # Specify ranger as the method
+                      trControl = ctrl,    # Control parameters for cross-validation
+                      tuneGrid = grid)    # Hyperparameter grid for tuning
+
+# View the best model and its parameters
+print(ranger_model)
+```
+
+We can see that this model actually performs very well on the testing data which means that our model is doing great and has no issues with underfitting or overfitting.
+
+The model performance on the test data is evaluated.
+```{r PlotRF, include=TRUE}
+library(caret)
+
+# Make predictions on the test data
+predictions <- predict(ranger_model, newdata = X_test)
+
+# For regression tasks, you can calculate metrics like RMSE, MAE, R-squared, etc.
+# RMSE
+rmse <- sqrt(mean((predictions - y_test)^2))
+print(paste("RMSE:", rmse))
+# R-squared
+r_squared <- cor(predictions, y_test)^2
+print(paste("R-squared:", r_squared))
+
+# Plot graphs to visualize model performance
+# Scatterplot of Actual vs. Predicted Values
+plot(y_test, predictions, xlab = "Actual Values", ylab = "Predicted Values", main = "Actual vs. Predicted Values")
+```
+
+<h1> ElasticNet Regression </h1>
+ElasticNet regression is one of the widely used regression techniques which allows us to perform lasso and ridge regularization in one go. We can train this model by calling the'glmnet' method from caret. Lets see how this is going to do on our data.
+
+```{r ElasticNet, include=TRUE}
+ctrl <- trainControl(method = "cv",   # Cross-validation method
+                     number = 5,      # Number of folds
+                     verboseIter = TRUE,  # Print verbose output
+                     search = "grid") # Use grid search for tuning
+
+# Define the hyperparameter grid
+grid <- expand.grid(alpha = seq(0, 1, by = 0.1),   # Alpha values (mixing parameter between L1 and L2 penalties)
+                    lambda = c(0.1, 1, 10))        # Lambda values (regularization strength)
+
+# Perform grid search with ElasticNet using train() function
+set.seed(123)  # For reproducibility
+enet_model <- train(x = X_train_scaled, y = y_train,         # Training data
+                    method = "glmnet",   # Specify glmnet as the method for ElasticNet
+                    trControl = ctrl,    # Control parameters for cross-validation
+                    tuneGrid = grid)    # Hyperparameter grid for tuning
+
+# View the best model and its parameters
+print(enet_model)
+```
+
+Lets see how our model works on test data.
+```{r PlotEN, include=TRUE}
+library(caret)
+
+# Make predictions on the test data
+predictions <- predict(enet_model, newdata = X_test_scaled)
+
+# For regression tasks, you can calculate metrics like RMSE, MAE, R-squared, etc.
+# RMSE
+rmse <- sqrt(mean((predictions - y_test)^2))
+print(paste("RMSE:", rmse))
+# R-squared
+r_squared <- cor(predictions, y_test)^2
+print(paste("R-squared:", r_squared))
+
+# Plot graphs to visualize model performance
+# Scatterplot of Actual vs. Predicted Values
+plot(y_test, predictions, xlab = "Actual Values", ylab = "Predicted Values", main = "Actual vs. Predicted Values")
+```
+
+<h1> Conclusion </h1>
+In this analysis, we explored various machine learning models to predict total points scored by basketball players based on their performance metrics. After evaluating Support Vector Machines with polynomial kernel, Random Forest, and ElasticNet regression, we found that the Random Forest model outperformed the others in terms of predictive accuracy, with a lower Root Mean Squared Error (RMSE) and higher R-squared value.
+In conclusion, the Random Forest model demonstrates promising performance in predicting total points scored by basketball players. By leveraging machine learning techniques, teams can gain valuable insights into player performance and make informed decisions to enhance team strategy and performance on the court.
+So,lets train our final model using the hyperparameters we got and using the full data.
+
+```{r FinalRandomForest, include=TRUE}
+library(ranger)
+final_model <- ranger(Total_Points ~ ., data=df, mtry = 12, min.node.size = 3, splitrule = "variance")
+print(final_model)
+```
